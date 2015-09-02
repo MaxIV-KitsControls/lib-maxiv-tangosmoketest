@@ -3,6 +3,7 @@
 import re
 
 import PyTango
+import pytest
 
 
 def pytest_addoption(parser):
@@ -17,23 +18,24 @@ def pytest_addoption(parser):
                      help="Name of a server to check")
     parser.addoption("--devfilter", action="append", default=[],
                      help="Regular expression used to filter devices.")
-    parser.addoption("--attribute", action="append", default=["State"],
+    parser.addoption("--attribute", action="append", default=[],
                      help="Name of a device attribute")
     parser.addoption("--desired-state", action="store",
-                     help="Name of state to expect")
-    parser.addoption("--undesired-state", action="store",
-                     help="Name of state to not expect")
+                     help="Name of State to expect")
+    parser.addoption("--undesired-state", action="store", default="FAULT",
+                     help="Name of State to not expect")
 
 
 def pytest_generate_tests(metafunc):
 
     "Parametrize tests according to their fixtures"
 
+    option = metafunc.config.option
+
     # parametrize all tests with the fixture "device"
     if "device" in metafunc.fixturenames:
 
         db = PyTango.Database()
-        option = metafunc.config.option
         devices = set()
 
         # add all devices for each given server
@@ -42,7 +44,7 @@ def pytest_generate_tests(metafunc):
             for server in servers:
                 devices.update(db.get_device_class_list(server)[::2])
 
-        # add all devices for each given class
+        # Add all devices for each given class
         for cls in option.devclass:
             devices.update(db.get_device_exported_for_class(cls))
 
@@ -50,11 +52,15 @@ def pytest_generate_tests(metafunc):
         for dev in option.device:
             devices.update(db.get_device_exported(dev))
 
-        # remove devices not matching all given devfilters
+        # remove devices not matching *all* given devfilters
         for devfilter in option.devfilter:
             regex = re.compile(devfilter)
             devices = set(dev for dev in devices if regex.match(dev))
-        metafunc.parametrize("device", list(devices))
+
+        # we'll never be interested in the dserver devices, right?
+        devices = sorted(d for d in devices if not d.startswith("dserver/"))
+
+        metafunc.parametrize("device", list(devices), scope="session")
 
     # likewise with "attribute" fixture, so that each of the tests
     # with that fixture will be run once for each attribute given

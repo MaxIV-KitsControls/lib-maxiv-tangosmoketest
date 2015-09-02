@@ -16,20 +16,24 @@ def test_ping(device):
 
 
 def test_read_attribute(device, attribute):
-    "Check that an attribute (State by default) can be read from the device"
+    "Check that the given attribute can be read from the device"
     proxy = PyTango.DeviceProxy(device)
-    proxy.read_attribute(attribute)
+    result = proxy.read_attribute(attribute)
+    assert str(result.quality) == str(PyTango.AttrQuality.ATTR_VALID), (
+        "Attribute quality is %s (value is %r)!" % (result.quality,
+                                                    result.value))
 
 
 def test_check_desired_state(device, desired_state):
     "Check that the device is in the given State"
     proxy = PyTango.DeviceProxy(device)
     state = proxy.read_attribute("State").value
-    assert state == desired_state
+    assert state == desired_state, ("State is %s, should be %s!" %
+                                    (state, desired_state))
 
 
 def test_check_undesired_state(device, undesired_state):
     "Check that the device is not in the given State"
     proxy = PyTango.DeviceProxy(device)
     state = proxy.read_attribute("State").value
-    assert state != undesired_state
+    assert state != undesired_state, "State is %s!" % undesired_state
