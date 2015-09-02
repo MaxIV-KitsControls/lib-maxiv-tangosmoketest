@@ -44,4 +44,6 @@ It will also print out all test results, and the durations for the ten slowest t
 
 ### Jenkins ###
 
-In order to use Jenkins built-in features for displaying test results it's a good idea to add "--junitxml=result.xms" as argument to py.test and add a post-build action to publish the test report "results.xml". This will add some nice graphs and a test result browser thingy to the job.
+In order to use Jenkins built-in features for displaying test results, add "--junitxml=result.xms" as argument to py.test, and a JUnit post-build action to publish the test report "results.xml". This will add a nice graph and a test result summary to the project.
+
+Installing the "AnsiColor" plugin to Jenkins makes the test output a bit more pleasant. The AnsiColor plugin also needs to be enabled for each job. However it seems like pytest by default turns off coloring when not running interactively, so add the flag "--color=yes".
