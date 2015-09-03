@@ -1,6 +1,7 @@
 "Pytest configuration"
 
 import re
+import time
 
 import PyTango
 import pytest
@@ -20,9 +21,9 @@ def pytest_addoption(parser):
                      help="Regular expression used to filter devices.")
     parser.addoption("--attribute", action="append", default=[],
                      help="Name of a device attribute")
-    parser.addoption("--desired-state", action="store",
+    parser.addoption("--desired-state", action="append", default=[],
                      help="Name of State to expect")
-    parser.addoption("--undesired-state", action="store", default="FAULT",
+    parser.addoption("--undesired-state", action="append", default=["FAULT"],
                      help="Name of State to not expect")
 
 
@@ -57,29 +58,37 @@ def pytest_generate_tests(metafunc):
             regex = re.compile(devfilter)
             devices = set(dev for dev in devices if regex.match(dev))
 
-        # we'll never be interested in the dserver devices, right?
-        devices = sorted(d for d in devices if not d.startswith("dserver/"))
+        if not devices:
+            pytest.xfail("No devices found!")
 
-        metafunc.parametrize("device", list(devices), scope="session")
+        # Let's make proxies for all the devices, that we can keep across
+        # the entire test run.
+        # We'll never be interested in the dserver devices, right?
+        proxies = []
+        for device in sorted(d for d in devices if not d.startswith("dserver/")):
+            proxies.append(PyTango.DeviceProxy(device))
+            time.sleep(0.1)
+
+        # Note: the ids argument provides a way for pytest to get the device name
+        # from the proxy, for more readable presentation.
+        metafunc.parametrize("device", proxies, scope="session", ids=lambda p: p.name())
 
     # likewise with "attribute" fixture, so that each of the tests
     # with that fixture will be run once for each attribute given
     if "attribute" in metafunc.fixturenames:
-        metafunc.parametrize("attribute", metafunc.config.option.attribute)
+        metafunc.parametrize("attribute", option.attribute)
 
-    # desired/undesired states work the same way
-    if "desired_state" in metafunc.fixturenames:
-        if metafunc.config.option.desired_state:
-            state = getattr(PyTango.DevState,
-                            metafunc.config.option.desired_state.upper())
-            metafunc.parametrize("desired_state", [state])
+    # and for the states...
+    if "desired_states" in metafunc.fixturenames:
+        states = [getattr(PyTango.DevState, s.upper()) for s in option.desired_state]
+        if states:
+            metafunc.parametrize("desired_states", [states], ids=lambda s: ",".join(map(str, s)))
         else:
-            metafunc.parametrize("desired_state", [])
+            metafunc.parametrize("desired_states", [])
 
-    if "undesired_state" in metafunc.fixturenames:
-        if metafunc.config.option.undesired_state:
-            state = getattr(PyTango.DevState,
-                            metafunc.config.option.undesired_state.upper())
-            metafunc.parametrize("undesired_state", [state])
+    if "undesired_states" in metafunc.fixturenames:
+        states = [getattr(PyTango.DevState, s.upper()) for s in option.undesired_state]
+        if states:
+            metafunc.parametrize("undesired_states", [states], ids=lambda s: ",".join(map(str, s)))
         else:
-            metafunc.parametrize("undesired_state", [])
+            metafunc.parametrize("undesired_states", [])
