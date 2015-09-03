@@ -22,13 +22,13 @@ It could also be very useful after e.g. a shutdown (planned or unplanned) when w
 py.test --server=AllenBradleyEIP/* 
 ```
 
-This line will find all instances of servers named AllenBradleyEIP and verify that it can be "pinged" (i.e. that it't running and responds at all).
+This line will find all instances of servers named AllenBradleyEIP and verify that it can be "pinged" (i.e. that it't running and responds at all). It will also check that the State is not FAULT (the undesired_state test is aways run).
 
 ```
 py.test -k read_attribute --device=sys/tg_test/1 --device=sys/tg_test/2 --attribute=boolean_scalar
 ```
 
-Will try to read the given attribute from sys/tg_test/1 and 2, checking that it's valid.
+Will try to read the given attribute from sys/tg_test/1 and 2, checking that it's valid. 
 
 ```
 py.test -v --devclass=VacuumValve --devfilter=R3-.* --desired-state=CLOSED --durations=10
