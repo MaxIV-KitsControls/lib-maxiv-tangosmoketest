@@ -6,61 +6,69 @@ attribute, et cetera; things that should work for any device. We
 don't check the results, only that the actions succeed.
 """
 
-import operator
+import re
 
 import PyTango
+import pytest
 
 
-def test_ping(device):
-    "Simple device connectivity test"
+def test_device(device, desired_states, undesired_states):
+
+    """Test the basic functionality of a device; ping it and check the State."""
+
     device.ping()
 
-
-def test_read_attribute(device, attribute):
-    "Check that the given attribute can be read from the device"
-
-    # TODO: this can be done more elegantly...
-    if "==" in attribute:
-        attr, value = attribute.split("==")
-        value = float(value)
-        check = operator.eq
-    elif "!=" in attribute:
-        attr, value = attribute.split("!=")
-        value = float(value)
-        check = operator.ne
-    elif ">=" in attribute:
-        attr, value = attribute.split(">=")
-        value = float(value)
-        check = operator.ge
-    elif ">" in attribute:
-        attr, value = attribute.split(">")
-        value = float(value)
-        check = operator.gt
-    elif "<=" in attribute:
-        attr, value = attribute.split("<=")
-        value = float(value)
-        check = operator.le
-    elif "<" in attribute:
-        attr, value = attribute.split("<")
-        value = float(value)
-        check = operator.lt
-    else:
-        attr = attribute
-        check = lambda *_: True
-
-    result = device.read_attribute(attr)
-    assert result.quality == PyTango.AttrQuality.ATTR_VALID, (
-        "Attribute quality is %s (value is %r)!" % (result.quality, result.value))
-    assert check(result.value, value), attribute + (" (%s is %r)" % (attr, result.value))
-
-
-def test_check_desired_state(device, desired_states):
     "Check that the device is in the given State"
     state = device.read_attribute("State").value
-    assert state in desired_states, "State is not %s!" % state
+    if desired_states:
+        assert state in desired_states, "State is %s!" % state
+    if undesired_states:
+        assert state not in undesired_states, "State is %s!" % state
 
 
-def test_check_undesired_state(device, undesired_states):
-    "Check that the device is not in the given State"
-    state = device.read_attribute("State").value
-    assert state not in undesired_states, "State is %s!" % state
+def find_variable(expression):
+    """find the variable in an "ask for forgiveness, not permission" way"""
+    try:
+        eval(expression)
+    except NameError as ne:
+        return re.findall("name '(\w+)' is not defined", str(ne))[0]
+
+
+def test_attribute(device, attribute, recwarn):
+
+    """Read a given attribute and optionally do some logic check on the
+    value, e.g. "A==0", "0<abs(B)<=67", "len(Errors)==0". It's
+    possible to do arbitrary builtin python operations in the
+    attribute expression (within reason...). Consider the type of the
+    attribute, no automatic conversion will be done!
+    Also, (currently) only one attribute can be used in the expression.
+    """
+
+    name = find_variable(attribute)
+    if not name:
+        pytest.xfail("No attribute specified in '%s'?" % name)
+
+    result = device.read_attribute(name)
+
+    assert result.quality == PyTango.AttrQuality.ATTR_VALID, (
+        "Attribute quality is %s (value is %r)!" % (result.quality, result.value))
+
+    assert eval(attribute, {name: result.value}) not in (False, None), (
+        "Attribute check failed! (%s is %r)" % (name, result.value))
+
+
+def test_command(device, command):
+
+    """Run a given command. Otherwise works like test_attribute w.r.t
+    expressions, e.g. "GetBadTags=[]"
+    """
+
+    # find the name of the command in an "ask for forgiveness, not permission" way
+    name = find_variable(command)
+    if not name:
+        pytest.xfail("No command specified?")
+
+    result = device.command_inout(name)
+
+    assert eval(command, {name: result}) not in (False, None), (
+        "Command check '%s' failed! (%s() returned %r)" % (command, name, result))
