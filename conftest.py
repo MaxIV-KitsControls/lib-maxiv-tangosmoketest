@@ -84,6 +84,11 @@ def pytest_configure(config):
     print "Created proxies to %d devices" % len(config.proxies)
 
 
+def pytest_runtest_teardown(item, nextitem):
+    time.sleep(0.01)  # slightly slowing down the tests to lessen impact
+    # TODO: make this configurable somehow?
+
+
 def pytest_generate_tests(metafunc):
 
     "Parametrize tests according to their fixtures"
