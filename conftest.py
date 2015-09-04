@@ -52,6 +52,10 @@ def pytest_configure(config):
     for dev in config.option.device:
         devices.update(db.get_device_exported(dev))
 
+    # We'll never be interested in the dserver devices, right?
+    devices = [d for d in devices
+               if not d.lower().startswith("dserver/")]
+
     print "Found %d devices in the database" % len(devices)
 
     # remove devices not matching *all* given devfilters
@@ -61,16 +65,11 @@ def pytest_configure(config):
         devices = set(dev for dev in devices if regex.match(dev))
         print "Filter '%s' matched %d devices" % (devfilter, len(devices))
 
-    # Exclude unwanted devices
-    # We'll never be interested in the dserver devices, right?
-    exclude = [e.lower() for e in config.option.exclude]
-    devices = [d for d in devices
-               if not d.lower().startswith("dserver/")]
-
-    n = len(devices)
-    devices = [d for d in devices if not d.lower() in exclude]
-
-    print "Excluded %d devices" % (n - len(devices))
+    if config.option.exclude:
+        exclude = [e.lower() for e in config.option.exclude]
+        n = len(devices)
+        devices = [d for d in devices if not d.lower() in exclude]
+        print "Excluded %d devices" % (n - len(devices))
 
     if not devices:
         pytest.xfail("No devices found!")
