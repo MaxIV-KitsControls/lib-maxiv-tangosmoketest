@@ -53,9 +53,9 @@ The available options specific to the project are:
 Important note: when using wildcards, --device will find only *exported* devices, i.e. devices that are running. This is of course a bit dangerous since the tests will miss any devices that *should* be running but are not. The solution for now is to use `--class/--server` with  `--devfilter` or `--exclude`, or explicitly specifying each device using `--device`.
 
 
-#### Useful pytest flags ###
+#### Useful pytest flags ####
 
-`-s` prevents pytest from silencing prints. This will enable some sparse "debug" output which can be useful if your tests are not finding the devices you expect.
+`-s` prevents pytest from silencing print statements.
 
 `-v` makes pytest write out a line for each test whether succeeded, skipped or failed. Useful if you really want to see exactly which tests were run with what fixtures.
 
