@@ -12,13 +12,32 @@ import PyTango
 import pytest
 
 
-def test_device(device, desired_states, undesired_states):
+# === Helpers ===
 
-    """Test the basic functionality of a device; ping it and check the State."""
+def find_variable(expression):
+    """Find the variable in an 'ask for forgiveness, not permission' way"""
+    try:
+        eval(expression)
+    except NameError as ne:
+        return re.findall("name '(\w+)' is not defined", str(ne))[0]
 
+
+# === Tests ===
+
+def test_ping(device):
+    """Check that we can even connect to the device."""
     device.ping()
 
-    "Check that the device is in the given State"
+
+def test_state(device, desired_states, undesired_states):
+
+    """
+    Check the device's State.
+    If a list of desired states is given, we check that the state
+    is one of those, otherwise verify that it's *not* in the list of
+    undesired states.
+    """
+
     state = device.read_attribute("State").value
     if desired_states:
         assert state in desired_states, "State is %s!" % state
@@ -26,21 +45,17 @@ def test_device(device, desired_states, undesired_states):
         assert state not in undesired_states, "State is %s!" % state
 
 
-def find_variable(expression):
-    """find the variable in an "ask for forgiveness, not permission" way"""
-    try:
-        eval(expression)
-    except NameError as ne:
-        return re.findall("name '(\w+)' is not defined", str(ne))[0]
-
-
 def test_attribute(device, attribute, recwarn):
 
-    """Read a given attribute and optionally do some logic check on the
+    """
+    Read a given attribute and optionally do some logic check on the
     value, e.g. "A==0", "0<abs(B)<=67", "len(Errors)==0". It's
     possible to do arbitrary builtin python operations in the
-    attribute expression (within reason...). Consider the type of the
-    attribute, no automatic conversion will be done!
+    attribute expression (within reason...).
+
+    Consider the type of the attribute, no automatic conversion will
+    be done!
+
     Also, (currently) only one attribute can be used in the expression.
     """
 
